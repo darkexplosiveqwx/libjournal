@@ -21,7 +21,7 @@ static int sendv_impl(const struct iovec *iov, int n, int one_shot) {
 
 static int send_impl(const char *format, va_list ap, int one_shot) {
     if (!format)
-        return 0;
+        return -EINVAL;
 
     struct iovec iov[MAX_IOV * 4];
     char values[MAX_IOV][FIELD_BUF];
@@ -116,7 +116,7 @@ static int send_impl(const char *format, va_list ap, int one_shot) {
     }
 
     if (n_iov == 0)
-        return 0;
+        return -EINVAL;
 
     return sendv_impl(iov, n_iov, one_shot);
 }

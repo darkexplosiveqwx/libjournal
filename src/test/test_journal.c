@@ -223,16 +223,16 @@ static void test_encode_binary_too_small(void) {
 
 static void test_send_bad_key(void) {
     int r = journal_send("BAD KEY=value", NULL);
-    ASSERT_EQ(r, 0);
+    ASSERT_EQ(r, -EINVAL);
 
     r = journal_send("bad=value", NULL);
-    ASSERT_EQ(r, 0);
+    ASSERT_EQ(r, -EINVAL);
 
     r = journal_send("_PID=123", NULL);
-    ASSERT_EQ(r, 0);
+    ASSERT_EQ(r, -EINVAL);
 
     r = journal_send("=value", NULL);
-    ASSERT_EQ(r, 0);
+    ASSERT_EQ(r, -EINVAL);
     PASS();
 }
 
