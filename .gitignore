@@ -1,0 +1,13 @@
+build/
+cmake-build-*/
+redhat-linux-build/
+*.o
+*.a
+*.so
+*.dylib
+*.lib
+*.dll
+*.exe
+*.obj
+
+journal-demo
