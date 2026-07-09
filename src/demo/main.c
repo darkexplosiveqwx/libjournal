@@ -22,11 +22,11 @@ int main(void)
 	journal_send("MESSAGE=Structured message", "PRIORITY=6", "USER=test", NULL);
 
 	{
-		const char *msg = "Manual iovec field";
+		const char *msg = "MESSAGE=Manual iovec field\n";
 		const char *prio = "PRIORITY=7\n";
 		struct iovec iov[2];
 		iov[0].iov_base = (void *)msg;
-		iov[0].iov_len = strlen(msg) + 1;
+		iov[0].iov_len = strlen(msg);
 		iov[1].iov_base = (void *)prio;
 		iov[1].iov_len = strlen(prio);
 
@@ -42,7 +42,7 @@ int main(void)
 	journal_send_once("MESSAGE=One-shot structured", "PRIORITY=%i", LOG_WARNING, NULL);
 
 	{
-		const char *msg = "One-shot manual iovec\n";
+		const char *msg = "MESSAGE=One-shot manual iovec\n";
 		struct iovec iov[1];
 		iov[0].iov_base = (void *)msg;
 		iov[0].iov_len = strlen(msg);
