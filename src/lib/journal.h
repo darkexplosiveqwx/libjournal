@@ -10,7 +10,7 @@ int journal_init(void);
 
 void journal_close(void);
 
-int journal_get_fd(void);
+int journal_get_fd(void) __attribute__((pure));
 
 int journal_print(int priority, const char *format, ...) __attribute__((format(printf, 2, 3)));
 

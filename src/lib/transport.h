@@ -9,7 +9,7 @@ int transport_init(void);
 
 void transport_close(void);
 
-int transport_get_fd(void);
+int transport_get_fd(void) __attribute__((pure));
 
 int transport_send(const struct iovec *iov, int iov_len);
 
