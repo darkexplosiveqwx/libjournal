@@ -35,6 +35,8 @@ int main(void)
 			fprintf(stderr, "journal_sendv() failed: %s\n", strerror(-r));
 	}
 
+	// this is not necessary for regular use and usually only called so the file descriptor doesn't show up in valgrind/gdb.
+	// Letting it leak is the recommended and simpler approach.
 	journal_close();
 
 	fprintf(stderr, "Demo complete. If journald is not running, errors above are expected.\n");

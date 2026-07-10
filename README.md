@@ -77,7 +77,6 @@ int main(void)
                  "USER=test",
                  NULL);
 
-    journal_close();
     return 0;
 }
 ```
