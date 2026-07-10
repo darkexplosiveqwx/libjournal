@@ -37,21 +37,6 @@ int main(void)
 
 	journal_close();
 
-	journal_print_once(LOG_ERR, "One-shot message: %d", 42);
-
-	journal_send_once("MESSAGE=One-shot structured", "PRIORITY=%i", LOG_WARNING, NULL);
-
-	{
-		const char *msg = "MESSAGE=One-shot manual iovec\n";
-		struct iovec iov[1];
-		iov[0].iov_base = (void *)msg;
-		iov[0].iov_len = strlen(msg);
-
-		r = journal_sendv_once(iov, 1);
-		if (r < 0)
-			fprintf(stderr, "journal_sendv_once() failed: %s\n", strerror(-r));
-	}
-
 	fprintf(stderr, "Demo complete. If journald is not running, errors above are expected.\n");
 	return 0;
 }

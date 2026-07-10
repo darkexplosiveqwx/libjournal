@@ -13,6 +13,4 @@ int transport_get_fd(void) __attribute__((pure));
 
 int transport_send(const struct iovec *iov, int iov_len);
 
-int transport_send_one_shot(const struct iovec *iov, int iov_len);
-
 #endif

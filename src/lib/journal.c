@@ -15,14 +15,7 @@
 #define FIELD_BUF 4096
 #define MAX_KEY 256
 
-static int sendv_impl(const struct iovec *iov, int n, int one_shot)
-{
-	if (one_shot)
-		return transport_send_one_shot(iov, n);
-	return transport_send(iov, n);
-}
-
-static int send_impl(const char *format, va_list ap, int one_shot)
+static int send_impl(const char *format, va_list ap)
 {
 	if (!format)
 		return -EINVAL;
@@ -130,7 +123,7 @@ static int send_impl(const char *format, va_list ap, int one_shot)
 	if (n_iov == 0)
 		return -EINVAL;
 
-	return sendv_impl(iov, n_iov, one_shot);
+	return transport_send(iov, n_iov);
 }
 
 int journal_init(void)
@@ -211,7 +204,7 @@ int journal_send(const char *format, ...)
 {
 	va_list ap;
 	va_start(ap, format);
-	int r = send_impl(format, ap, 0);
+	int r = send_impl(format, ap);
 	va_end(ap);
 	return r;
 }
@@ -223,81 +216,4 @@ int journal_sendv(const struct iovec *iov, int n)
 	if (n == 0)
 		return 0;
 	return transport_send(iov, n);
-}
-
-int journal_print_once(int priority, const char *format, ...)
-{
-	if (!format)
-		return -EINVAL;
-
-	char msg[FIELD_BUF];
-	char msg_field[64 + FIELD_BUF];
-	char prio_val[16];
-	char prio_field[32];
-	unsigned char le_buf[8];
-	char key_buf[8];
-	struct iovec iov[8];
-	int n_iov = 0;
-
-	va_list ap;
-	va_start(ap, format);
-	int msg_len = vsnprintf(msg, sizeof(msg), format, ap);
-	va_end(ap);
-
-	if (msg_len < 0)
-		return -EINVAL;
-	if ((size_t)msg_len >= sizeof(msg))
-		msg_len = (int)sizeof(msg) - 1;
-
-	msg_len = (int)encode_trim_trailing_whitespace(msg, (size_t)msg_len);
-
-	if (encode_needs_binary(msg, (size_t)msg_len))
-	{
-		int idx = n_iov;
-		int r = encode_binary(iov, 8, &idx, "MESSAGE", 7, msg, (size_t)msg_len, key_buf, le_buf);
-		if (r < 0)
-			return r;
-		n_iov = idx;
-	}
-	else
-	{
-		int len = encode_text(msg_field, sizeof(msg_field), "MESSAGE", 7, msg, (size_t)msg_len);
-		if (len < 0)
-			return -EINVAL;
-		iov[n_iov].iov_base = msg_field;
-		iov[n_iov].iov_len = (size_t)len;
-		n_iov++;
-	}
-
-	int prio_len = snprintf(prio_val, sizeof(prio_val), "%d", priority);
-	if (prio_len < 0)
-		return -EINVAL;
-
-	int pfl =
-		encode_text(prio_field, sizeof(prio_field), "PRIORITY", 8, prio_val, (size_t)prio_len);
-	if (pfl < 0)
-		return -EINVAL;
-	iov[n_iov].iov_base = prio_field;
-	iov[n_iov].iov_len = (size_t)pfl;
-	n_iov++;
-
-	return transport_send_one_shot(iov, n_iov);
-}
-
-int journal_send_once(const char *format, ...)
-{
-	va_list ap;
-	va_start(ap, format);
-	int r = send_impl(format, ap, 1);
-	va_end(ap);
-	return r;
-}
-
-int journal_sendv_once(const struct iovec *iov, int n)
-{
-	if (n < 0)
-		return -EINVAL;
-	if (n == 0)
-		return 0;
-	return transport_send_one_shot(iov, n);
 }

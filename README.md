@@ -94,12 +94,6 @@ Compile with `-I<path-to-libjournal>/src/lib` and link against `-ljournal -lpthr
 | `journal_print(priority, fmt, ...)` | Send a MESSAGE field with PRIORITY. |
 | `journal_send(fmt, ...)` | Send structured key=value fields (NULL-terminated). |
 | `journal_sendv(iov, n)` | Send pre-built iovec fields. |
-| `journal_print_once(...)` | Like `journal_print` but opens/closes the socket each call. |
-| `journal_send_once(...)` | Like `journal_send` but opens/closes the socket each call. |
-| `journal_sendv_once(iov, n)` | Like `journal_sendv` but opens/closes the socket each call. |
-
-The `_once` variants are useful for short-lived processes that don't want to
-hold a persistent socket.
 
 ## Comparison with libsystemd
 

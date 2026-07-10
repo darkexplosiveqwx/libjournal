@@ -390,25 +390,6 @@ static void test_init_close(void)
 	PASS();
 }
 
-/* --- one-shot variants --- */
-
-static void test_once_variants(void)
-{
-	SKIP_JOURNAL();
-	ASSERT_EQ(journal_print_once(LOG_INFO, "once %d", 1), 0);
-
-	ASSERT_EQ(journal_send_once("MESSAGE=once", NULL), 0);
-
-	ASSERT_EQ(journal_send_once("MESSAGE=%s", "once", NULL), 0);
-
-	struct iovec iov[1];
-	char f[] = "MESSAGE=oncev\n";
-	iov[0].iov_base = f;
-	iov[0].iov_len = sizeof(f) - 1;
-	ASSERT_EQ(journal_sendv_once(iov, 1), 0);
-	PASS();
-}
-
 /* --- binary value auto-detection in journal_send --- */
 
 static void test_send_auto_binary(void)
@@ -493,10 +474,6 @@ int main(void)
 	printf("\n=== init/close ===\n");
 	TEST("init and close");
 	test_init_close();
-
-	printf("\n=== one-shot ===\n");
-	TEST("one-shot variants");
-	test_once_variants();
 
 	printf("\n=== results ===\n");
 	printf("  PASS: %d\n", n_pass);
