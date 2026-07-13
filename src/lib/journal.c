@@ -41,6 +41,16 @@ static int send_impl(const char *format, va_list ap)
 		size_t key_len = (size_t)(eq - f);
 		if (key_len == 0 || key_len > MAX_KEY)
 		{
+			/*
+			 * Consume variadic arguments as void* to skip past them. This works
+			 * because all GP register slots are pointer-sized on supported ABIs.
+			 *
+			 * On AARCH64, floating-point values are passed in separate FP
+			 * registers (v0-v7) tracked by va_list.__vr_offs. va_arg(ap, void*)
+			 * only advances the GP register offset (__gr_offs), so FP format
+			 * specifiers (%f, %e, %g, %a, %Lf) in field values are not consumed
+			 * and will cause subsequent arguments to be misread.
+			 */
 			for (int i = 0; i < n_args; i++)
 				(void)va_arg(ap, void *);
 			f = va_arg(ap, const char *);
