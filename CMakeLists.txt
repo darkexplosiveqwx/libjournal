@@ -37,3 +37,12 @@ install(TARGETS journal
 install(FILES src/lib/journal.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+
+configure_file(${CMAKE_SOURCE_DIR}/libjournal.pc.in
+    ${CMAKE_BINARY_DIR}/libjournal.pc
+    @ONLY
+)
+
+install(FILES ${CMAKE_BINARY_DIR}/libjournal.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+)
