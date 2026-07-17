@@ -37,21 +37,14 @@ Static archive of %{name} for statically linked applications.
 %autosetup -n %{name}-%{version}
 
 %build
-%cmake -DBUILD_SHARED_LIBS=ON  -DBUILD_DEMO=OFF -DBUILD_TESTS=ON
+%cmake -DBUILD_DEMO=OFF -DBUILD_TESTS=ON
 %cmake_build
-
-%cmake -B build-static \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DBUILD_DEMO=OFF \
-    -DBUILD_TESTS=OFF
-%cmake_build -B build-static --target journal
 
 %check
 %ctest
 
 %install
 %cmake_install
-%cmake_install -B build-static
 
 %files
 %license LICENSE
