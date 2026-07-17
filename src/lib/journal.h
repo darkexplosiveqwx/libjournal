@@ -3,6 +3,10 @@
 #ifndef JOURNAL_H
 #define JOURNAL_H
 
+#ifndef LIBJOURNAL_VERSION_STRING
+#define LIBJOURNAL_VERSION_STRING "unknown"
+#endif
+
 #include <sys/syslog.h>
 #include <sys/uio.h>
 
