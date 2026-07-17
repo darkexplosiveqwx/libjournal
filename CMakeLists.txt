@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 cmake_minimum_required(VERSION 3.21)
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
 
 project(libjournal VERSION 0.1.0 LANGUAGES C)
 

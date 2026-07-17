@@ -40,21 +40,18 @@ Static archive of %{name} for statically linked applications.
 %cmake -DBUILD_SHARED_LIBS=ON  -DBUILD_DEMO=OFF -DBUILD_TESTS=ON
 %cmake_build
 
-cmake -S . -B build-static -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=%{_prefix} \
-    -DCMAKE_INSTALL_LIBDIR=%{_libdir} \
+%cmake -B build-static \
     -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_DEMO=OFF \
     -DBUILD_TESTS=OFF
-cmake --build build-static --target journal
+%cmake_build -B build-static --target journal
 
 %check
 %ctest
 
 %install
 %cmake_install
-install -Dm644 build-static/src/lib/libjournal.a %{buildroot}%{_libdir}/%{name}.a
+%cmake_install -B build-static
 
 %files
 %license LICENSE
@@ -70,5 +67,5 @@ install -Dm644 build-static/src/lib/libjournal.a %{buildroot}%{_libdir}/%{name}.
 %{_libdir}/%{name}.a
 
 %changelog
-* Mon Jul 14 2026 darkexplosiveqwx <darkexplosiveqwx@users.noreply.github.com> - 0.1.0-1
+* Tue Jul 14 2026 darkexplosiveqwx <darkexplosiveqwx@users.noreply.github.com> - 0.1.0-1
 - Initial packaging
