@@ -10,7 +10,7 @@ libsystemd dependency -- just the write path.
 
 - **Zero libsystemd dependency** -- connect directly to the journal socket
 - **musl-compatible** -- works with musl-gcc, no glibc assumptions
-- **Embeddable** -- single static library, links only pthread
+- **Embeddable** -- single static library, links only against POSIX Threads
 - **Thread-safe** -- atomic fd with mutex-protected init/reconnect
 - **Auto-reconnect** -- transparently reconnects on ECONNREFUSED / broken pipe
 - **Large message support** -- falls back to memfd for payloads over 128 KiB
@@ -57,7 +57,7 @@ add_executable(myapp main.c)
 target_link_libraries(myapp PRIVATE journal)
 ```
 
-The library target, includes, and pthread linkage are handled by the
+The library target, includes, and Threads linkage are handled by the
 copied `CMakeLists.txt`.
 
 ## Usage
@@ -81,7 +81,7 @@ int main(void)
 }
 ```
 
-Compile with `-I<path-to-libjournal>/src/lib` and link against `-ljournal -lpthread`.
+Compile with `-I<path-to-libjournal>/src/lib` and link against `-ljournal -pthread`.
 
 ## API
 

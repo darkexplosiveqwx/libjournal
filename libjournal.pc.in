@@ -6,5 +6,5 @@ includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
 Name: libjournal
 Description: C library for writing to systemd journald without libsystemd
 Version: @PROJECT_VERSION@
-Libs: -L${libdir} -ljournal -lpthread
+Libs: -L${libdir} -ljournal -pthread
 Cflags: -I${includedir}

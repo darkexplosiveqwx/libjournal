@@ -4,4 +4,8 @@ add_executable(journal-demo
     main.c
 )
 
-target_link_libraries(journal-demo PRIVATE journal)
+if(BUILD_SHARED_LIBS)
+    target_link_libraries(journal-demo PRIVATE journal)
+else()
+    target_link_libraries(journal-demo PRIVATE journal_static)
+endif()
