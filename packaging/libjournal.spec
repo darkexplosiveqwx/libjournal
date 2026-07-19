@@ -1,11 +1,11 @@
 Name:           libjournal
-Version:        0.1.0
+Version:        0.1
 Release:        1%{?dist}
 Summary:        C library for writing to systemd journald without libsystemd
 
 License:        BSD-3-Clause
 URL:            https://github.com/darkexplosiveqwx/libjournal
-Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
+Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz
 
 BuildRequires:  cmake >= 3.21
 BuildRequires:  gcc
@@ -60,5 +60,5 @@ Static archive of %{name} for statically linked applications.
 %{_libdir}/%{name}.a
 
 %changelog
-* Tue Jul 14 2026 darkexplosiveqwx <darkexplosiveqwx@users.noreply.github.com> - 0.1.0-1
+* Tue Jul 14 2026 darkexplosiveqwx <darkexplosiveqwx@users.noreply.github.com> - 0.1-1
 - Initial packaging
