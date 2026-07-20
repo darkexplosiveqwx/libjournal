@@ -332,6 +332,30 @@ static void test_sendv_binary(void)
 	PASS();
 }
 
+/* --- large message via journal_sendv (exercises memfd path) --- */
+
+static void test_sendv_large(void)
+{
+	SKIP_JOURNAL();
+	size_t sz = 200 * 1024;
+	char *buf = malloc(8 + sz + 1);
+	ASSERT(buf != NULL);
+	memcpy(buf, "MESSAGE=", 8);
+	memcpy(buf + 8, "LARGE_MEMFD_PAYLOAD:", 20);
+	for (size_t i = 20; i < sz; i++)
+		buf[8 + i] = 'A';
+	buf[8 + sz] = '\n';
+	const char *prio = "PRIORITY=6\n";
+	struct iovec iov[2];
+	iov[0].iov_base = buf;
+	iov[0].iov_len = 8 + sz + 1;
+	iov[1].iov_base = (void *)prio;
+	iov[1].iov_len = strlen(prio);
+	ASSERT_EQ(journal_sendv(iov, 2), 0);
+	free(buf);
+	PASS();
+}
+
 /* --- util_write_le64 --- */
 
 static void test_write_le64(void)
@@ -440,6 +464,7 @@ static void test_demo_integration(void)
 	int found_priority_6 = 0;
 	int found_priority_7 = 0;
 	int found_user_test = 0;
+	int found_large = 0;
 
 	while (fgets(line, sizeof(line), p))
 	{
@@ -459,6 +484,21 @@ static void test_demo_integration(void)
 	}
 	pclose(p);
 
+	/* Large messages produce JSON lines that exceed fgets buffer size,
+	 * so check for them separately via --output=cat */
+	snprintf(cmd, sizeof(cmd),
+			 "journalctl --boot --output=cat _COMM=journal-demo --since='%s'",
+			 since);
+	p = popen(cmd, "r");
+	ASSERT(p != NULL);
+	char catbuf[1024];
+	while (fgets(catbuf, sizeof(catbuf), p))
+	{
+		if (strstr(catbuf, "LARGE_MEMFD_PAYLOAD"))
+			found_large = 1;
+	}
+	pclose(p);
+
 	ASSERT(n_entries >= 3);
 	ASSERT(found_hello);
 	ASSERT(found_structured);
@@ -466,6 +506,7 @@ static void test_demo_integration(void)
 	ASSERT(found_priority_6);
 	ASSERT(found_priority_7);
 	ASSERT(found_user_test);
+	ASSERT(found_large);
 	PASS();
 }
 
@@ -536,6 +577,8 @@ int main(void)
 	test_sendv_basic();
 	TEST("binary via sendv");
 	test_sendv_binary();
+	TEST("large message via sendv");
+	test_sendv_large();
 
 	printf("\n=== init/close ===\n");
 	TEST("init and close");

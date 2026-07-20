@@ -3,6 +3,7 @@
 #include "journal.h"
 
 #include <errno.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -34,6 +35,32 @@ int main(void)
 		r = journal_sendv(iov, 2);
 		if (r < 0)
 			fprintf(stderr, "journal_sendv() failed: %s\n", strerror(-r));
+	}
+
+	// Large message (>128 KiB) to exercise the memfd fallback path
+	{
+		size_t sz = 200 * 1024;
+		char *buf = malloc(8 + sz + 1);
+		if (buf)
+		{
+			memcpy(buf, "MESSAGE=", 8);
+			memcpy(buf + 8, "LARGE_MEMFD_PAYLOAD:", 20);
+			for (size_t i = 20; i < sz; i++)
+				buf[8 + i] = 'A';
+			buf[8 + sz] = '\n';
+
+			const char *prio = "PRIORITY=6\n";
+			struct iovec iov[2];
+			iov[0].iov_base = buf;
+			iov[0].iov_len = 8 + sz + 1;
+			iov[1].iov_base = (void *)prio;
+			iov[1].iov_len = strlen(prio);
+
+			r = journal_sendv(iov, 2);
+			if (r < 0)
+				fprintf(stderr, "journal_sendv(large) failed: %s\n", strerror(-r));
+			free(buf);
+		}
 	}
 
 	// this is not necessary for regular use and usually only called so the file descriptor doesn't show up in valgrind/gdb.
