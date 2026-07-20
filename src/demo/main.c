@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 int main(void)
 {
@@ -38,6 +39,13 @@ int main(void)
 	// this is not necessary for regular use and usually only called so the file descriptor doesn't show up in valgrind/gdb.
 	// Letting it leak is the recommended and simpler approach.
 	journal_close();
+
+	struct timespec ts = {
+    .tv_sec = 0,
+    .tv_nsec = 1000000
+	};
+	// sleep for 1ms to allow journald to generate more metadata, otherwise we will have exited by the time journald reads /proc with our PID
+	nanosleep(&ts, NULL);
 
 	fprintf(stderr, "Demo complete. If journald is not running, errors above are expected.\n");
 	return 0;

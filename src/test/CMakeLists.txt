@@ -5,3 +5,6 @@ add_executable(test-journal
 )
 
 target_link_libraries(test-journal PRIVATE journal)
+target_compile_definitions(test-journal PRIVATE
+    DEMO_BIN="$<TARGET_FILE:journal-demo>"
+)

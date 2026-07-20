@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/uio.h>
 
@@ -403,6 +404,71 @@ static void test_send_auto_binary(void)
 	PASS();
 }
 
+/* --- integration: run demo and verify journal fields --- */
+
+static void test_demo_integration(void)
+{
+	SKIP_JOURNAL();
+
+	char since[64];
+	FILE *p;
+
+	/* 1. Get current time with nanosecond precision */
+	p = popen("date '+%Y-%m-%d %H:%M:%S.%N'", "r");
+	ASSERT(p != NULL);
+	ASSERT(fgets(since, sizeof(since), p) != NULL);
+	pclose(p);
+	since[strcspn(since, "\n")] = '\0';
+
+	/* 2. Run the demo */
+	int r = system(DEMO_BIN " >/dev/null 2>&1");
+	ASSERT_EQ(r, 0);
+
+	/* 3. Query journalctl */
+	char cmd[512];
+	snprintf(cmd, sizeof(cmd), "journalctl --boot --output=json _COMM=journal-demo --since='%s'",
+			 since);
+	p = popen(cmd, "r");
+	ASSERT(p != NULL);
+
+	/* Read all lines and check for expected fields */
+	char line[4096];
+	int n_entries = 0;
+	int found_hello = 0;
+	int found_structured = 0;
+	int found_iovec = 0;
+	int found_priority_6 = 0;
+	int found_priority_7 = 0;
+	int found_user_test = 0;
+
+	while (fgets(line, sizeof(line), p))
+	{
+		n_entries++;
+		if (strstr(line, "\"MESSAGE\":\"Hello world\""))
+			found_hello = 1;
+		if (strstr(line, "\"MESSAGE\":\"Structured message\""))
+			found_structured = 1;
+		if (strstr(line, "\"MESSAGE\":\"Manual iovec field\""))
+			found_iovec = 1;
+		if (strstr(line, "\"PRIORITY\":\"6\""))
+			found_priority_6 = 1;
+		if (strstr(line, "\"PRIORITY\":\"7\""))
+			found_priority_7 = 1;
+		if (strstr(line, "\"USER\":\"test\""))
+			found_user_test = 1;
+	}
+	pclose(p);
+
+	ASSERT(n_entries >= 3);
+	ASSERT(found_hello);
+	ASSERT(found_structured);
+	ASSERT(found_iovec);
+	ASSERT(found_priority_6);
+	ASSERT(found_priority_7);
+	ASSERT(found_user_test);
+	PASS();
+}
+
 /* --- main --- */
 
 int main(void)
@@ -474,6 +540,10 @@ int main(void)
 	printf("\n=== init/close ===\n");
 	TEST("init and close");
 	test_init_close();
+
+	printf("\n=== integration ===\n");
+	TEST("demo integration");
+	test_demo_integration();
 
 	printf("\n=== results ===\n");
 	printf("  PASS: %d\n", n_pass);
