@@ -17,7 +17,12 @@ endif()
 option(BUILD_DEMO "Build demo application" ON)
 option(BUILD_TESTS "Build protocol tests" ON)
 
+if(BUILD_TESTS AND NOT BUILD_DEMO)
+  message(FATAL_ERROR "BUILD_TESTS requires BUILD_DEMO to be ON")
+endif()
+
 include(GNUInstallDirs)
+enable_testing()
 
 add_subdirectory(src/lib)
 

@@ -8,3 +8,5 @@ target_link_libraries(test-journal PRIVATE journal)
 target_compile_definitions(test-journal PRIVATE
     DEMO_BIN="$<TARGET_FILE:journal-demo>"
 )
+
+add_test(NAME test-journal COMMAND test-journal)

@@ -37,7 +37,7 @@ Static archive of %{name} for statically linked applications.
 %autosetup -n %{name}-%{version}
 
 %build
-%cmake -DBUILD_DEMO=OFF -DBUILD_TESTS=ON
+%cmake -DBUILD_TESTS=ON
 %cmake_build
 
 %check

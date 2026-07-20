@@ -63,7 +63,7 @@ if $static; then
 else
   cmake "${cmake_args[@]}"
 fi
-cmake --build build --target journal-demo
+cmake --build build --target journal-demo test-journal
 cp build/src/demo/journal-demo .
 if [ -n "$static_inc" ]; then
   rm -rf "$static_inc"
