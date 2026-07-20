@@ -448,16 +448,22 @@ static void test_demo_integration(void)
 	int r = system(DEMO_BIN " >/dev/null 2>&1");
 	ASSERT_EQ(r, 0);
 
-	/* 3. Query journalctl */
+	/* 3. Query journalctl --output=export gives one KEY=value per line,
+	 *    no JSON escaping and no field size truncation. */
 	char cmd[512];
-	snprintf(cmd, sizeof(cmd), "journalctl --boot --output=json _COMM=journal-demo --since='%s'",
+	snprintf(cmd, sizeof(cmd),
+			 "journalctl --boot --output=export _COMM=journal-demo --since='%s'",
 			 since);
 	p = popen(cmd, "r");
 	ASSERT(p != NULL);
 
-	/* Read all lines and check for expected fields */
+	/*
+	 * export format: each field is "KEY=value\n", entries separated by "\n".
+	 * The large MESSAGE field may exceed our buffer; we only need to match
+	 * the prefix "LARGE_MEMFD_PAYLOAD" which appears within the first few
+	 * bytes of the value on its own line, so a modest buffer suffices.
+	 */
 	char line[4096];
-	int n_entries = 0;
 	int found_hello = 0;
 	int found_structured = 0;
 	int found_iovec = 0;
@@ -468,38 +474,23 @@ static void test_demo_integration(void)
 
 	while (fgets(line, sizeof(line), p))
 	{
-		n_entries++;
-		if (strstr(line, "\"MESSAGE\":\"Hello world\""))
+		if (strstr(line, "MESSAGE=Hello world"))
 			found_hello = 1;
-		if (strstr(line, "\"MESSAGE\":\"Structured message\""))
+		if (strstr(line, "MESSAGE=Structured message"))
 			found_structured = 1;
-		if (strstr(line, "\"MESSAGE\":\"Manual iovec field\""))
+		if (strstr(line, "MESSAGE=Manual iovec field"))
 			found_iovec = 1;
-		if (strstr(line, "\"PRIORITY\":\"6\""))
+		if (strstr(line, "PRIORITY=6"))
 			found_priority_6 = 1;
-		if (strstr(line, "\"PRIORITY\":\"7\""))
+		if (strstr(line, "PRIORITY=7"))
 			found_priority_7 = 1;
-		if (strstr(line, "\"USER\":\"test\""))
+		if (strstr(line, "USER=test"))
 			found_user_test = 1;
-	}
-	pclose(p);
-
-	/* Large messages produce JSON lines that exceed fgets buffer size,
-	 * so check for them separately via --output=cat */
-	snprintf(cmd, sizeof(cmd),
-			 "journalctl --boot --output=cat _COMM=journal-demo --since='%s'",
-			 since);
-	p = popen(cmd, "r");
-	ASSERT(p != NULL);
-	char catbuf[1024];
-	while (fgets(catbuf, sizeof(catbuf), p))
-	{
-		if (strstr(catbuf, "LARGE_MEMFD_PAYLOAD"))
+		if (strstr(line, "MESSAGE=LARGE_MEMFD_PAYLOAD:AAAAA"))
 			found_large = 1;
 	}
 	pclose(p);
 
-	ASSERT(n_entries >= 3);
 	ASSERT(found_hello);
 	ASSERT(found_structured);
 	ASSERT(found_iovec);
