@@ -184,6 +184,22 @@ static void test_encode_text(void)
 	ASSERT_EQ(buf[1], '=');
 	ASSERT_EQ(buf[2], '\n');
 
+	len = encode_text(buf, sizeof(buf), "MSG", 3, "a=b", 3);
+	ASSERT_EQ(len, 8);
+	ASSERT_EQ(buf[7], '\n');
+	buf[7] = '\0';
+	ASSERT_STREQ(buf, "MSG=a=b");
+
+	len = encode_text(buf, sizeof(buf), "MSG", 3, "=x=y=", 5);
+	ASSERT_EQ(len, 10);
+	buf[9] = '\0';
+	ASSERT_STREQ(buf, "MSG==x=y=");
+
+	len = encode_text(buf, sizeof(buf), "K", 1, "=", 1);
+	ASSERT_EQ(len, 4);
+	buf[3] = '\0';
+	ASSERT_STREQ(buf, "K==");
+
 	ASSERT_EQ(encode_text(buf, 3, "K", 1, "v", 1), -ENOSPC);
 	ASSERT_EQ(encode_text(NULL, 10, "K", 1, "v", 1), -EINVAL);
 	ASSERT_EQ(encode_text(buf, 10, NULL, 1, "v", 1), -EINVAL);
@@ -428,6 +444,19 @@ static void test_send_auto_binary(void)
 	PASS();
 }
 
+/* --- journal_send with equal signs in values --- */
+
+static void test_send_equal_in_value(void)
+{
+	SKIP_JOURNAL();
+	int r = journal_send("MESSAGE=a=b=c", "PRIORITY=6", NULL);
+	ASSERT_EQ(r, 0);
+
+	r = journal_send("KEY1==leading", "KEY2=trailing=", "KEY3=a=b=c=d", NULL);
+	ASSERT_EQ(r, 0);
+	PASS();
+}
+
 /* --- integration: run demo and verify journal fields --- */
 
 static void test_demo_integration(void)
@@ -474,6 +503,7 @@ static void test_demo_integration(void)
 	int found_binary_key = 0;
 	int found_binary_le_hello = 0;
 	int found_binary_world = 0;
+	int found_equal = 0;
 
 	while (fgets(line, sizeof(line), p))
 	{
@@ -499,6 +529,8 @@ static void test_demo_integration(void)
 			found_binary_le_hello = 1;
 		if (found_binary_le_hello && strcmp(line, "world") == 0)
 			found_binary_world = 1;
+		if (strstr(line, "EQUAL_FIELD=a=FOO=c"))
+			found_equal = 1;
 	}
 	pclose(p);
 
@@ -512,6 +544,7 @@ static void test_demo_integration(void)
 	ASSERT(found_binary_key);
 	ASSERT(found_binary_le_hello);
 	ASSERT(found_binary_world);
+	ASSERT(found_equal);
 	PASS();
 }
 
@@ -572,6 +605,8 @@ int main(void)
 	test_send_multi();
 	TEST("auto binary encoding");
 	test_send_auto_binary();
+	TEST("equal signs in values");
+	test_send_equal_in_value();
 
 	printf("\n=== journal_print ===\n");
 	TEST("empty and NULL format");

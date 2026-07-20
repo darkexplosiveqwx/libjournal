@@ -19,12 +19,23 @@ int main(void)
 		return 1;
 	}
 
-	journal_print(LOG_INFO, "Hello %s", "world");
+	r = journal_print(LOG_INFO, "Hello %s", "world");
+	if (r < 0)
+		fprintf(stderr, "journal_print() failed: %s\n", strerror(-r));
 
-	journal_send("MESSAGE=Structured message", "PRIORITY=6", "USER=test", NULL);
+	r = journal_send("MESSAGE=Structured message", "PRIORITY=6", "USER=test", NULL);
+	if (r < 0)
+		fprintf(stderr, "journal_send() failed: %s\n", strerror(-r));
 
 	// Field containing a newline triggers automatic binary encoding
-	journal_send("BINARY_FIELD=hello\nworld", "PRIORITY=6", NULL);
+	r = journal_send("BINARY_FIELD=hello\nworld", "PRIORITY=6", NULL);
+	if (r < 0)
+		fprintf(stderr, "journal_send() failed: %s\n", strerror(-r));
+
+	// Equal signs in values must survive the key=value split
+	r = journal_send("EQUAL_FIELD=a=FOO=c", "PRIORITY=6", NULL);
+	if (r < 0)
+		fprintf(stderr, "journal_send() failed: %s\n", strerror(-r));
 
 	{
 		const char *msg = "MESSAGE=Manual iovec field\n";
