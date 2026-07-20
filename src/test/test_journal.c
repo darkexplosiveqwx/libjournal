@@ -471,9 +471,13 @@ static void test_demo_integration(void)
 	int found_priority_7 = 0;
 	int found_user_test = 0;
 	int found_large = 0;
+	int found_binary_key = 0;
+	int found_binary_le_hello = 0;
+	int found_binary_world = 0;
 
 	while (fgets(line, sizeof(line), p))
 	{
+		line[strcspn(line, "\n")] = '\0';
 		if (strstr(line, "MESSAGE=Hello world"))
 			found_hello = 1;
 		if (strstr(line, "MESSAGE=Structured message"))
@@ -488,6 +492,13 @@ static void test_demo_integration(void)
 			found_user_test = 1;
 		if (strstr(line, "MESSAGE=LARGE_MEMFD_PAYLOAD:AAAAA"))
 			found_large = 1;
+		if (strcmp(line, "BINARY_FIELD") == 0)
+			found_binary_key = 1;
+		if (found_binary_key &&
+			memcmp(line, "\x0b\0\0\0\0\0\0\0hello", 13) == 0)
+			found_binary_le_hello = 1;
+		if (found_binary_le_hello && strcmp(line, "world") == 0)
+			found_binary_world = 1;
 	}
 	pclose(p);
 
@@ -498,6 +509,9 @@ static void test_demo_integration(void)
 	ASSERT(found_priority_7);
 	ASSERT(found_user_test);
 	ASSERT(found_large);
+	ASSERT(found_binary_key);
+	ASSERT(found_binary_le_hello);
+	ASSERT(found_binary_world);
 	PASS();
 }
 

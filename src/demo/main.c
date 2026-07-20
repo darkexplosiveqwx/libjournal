@@ -23,6 +23,9 @@ int main(void)
 
 	journal_send("MESSAGE=Structured message", "PRIORITY=6", "USER=test", NULL);
 
+	// Field containing a newline triggers automatic binary encoding
+	journal_send("BINARY_FIELD=hello\nworld", "PRIORITY=6", NULL);
+
 	{
 		const char *msg = "MESSAGE=Manual iovec field\n";
 		const char *prio = "PRIORITY=7\n";
