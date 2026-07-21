@@ -5,6 +5,7 @@ clean=false
 nobuild=false
 static=false
 container=false
+test_container=false
 debug=false
 release=false
 for arg in "$@"; do
@@ -12,6 +13,7 @@ for arg in "$@"; do
   [ "$arg" = "nobuild" ] && nobuild=true
   [ "$arg" = "static" ] && static=true
   [ "$arg" = "container" ] && container=true
+  [ "$arg" = "test" ] && test_container=true
   [ "$arg" = "debug" ] && debug=true
   [ "$arg" = "release" ] && release=true
 done
@@ -34,12 +36,24 @@ if $container; then
     echo "error: neither podman nor docker found" >&2
     exit 1
   fi
-  $buildctl build -t "$image" -f Containerfile ${buildtype:+--build-arg buildtype=$buildtype} .
+  $buildctl build -t "$image" -f container/Containerfile ${buildtype:+--build-arg buildtype=$buildtype} .
   cid=$($buildctl create "$image")
   $buildctl cp "$cid":/journal-demo .
   $buildctl rm "$cid" >/dev/null
   echo "built: $(pwd)/journal-demo"
   exit 0
+fi
+
+if $test_container; then
+  rm -rf build journal-demo
+  image="libjournal-test:latest"
+  buildctl=$(command -v podman || command -v docker)
+  if [ -z "$buildctl" ]; then
+    echo "error: neither podman nor docker found" >&2
+    exit 1
+  fi
+  $buildctl build --target test -t "$image" -f container/Containerfile .
+  exec $buildctl run --rm -t "$image"
 fi
 
 $nobuild && exit 0

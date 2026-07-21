@@ -19,3 +19,24 @@ RUN cmake -S . -B build \
 
 FROM scratch
 COPY --from=build /journal-demo /journal-demo
+
+# --- test target: Fedora + systemd for integration tests ---
+FROM fedora:latest AS test
+
+RUN dnf install -y \
+    gcc \
+    cmake \
+    make \
+    systemd \
+    && dnf clean all
+
+COPY . /src
+WORKDIR /src
+
+RUN cmake -S . -B build && \
+    cmake --build build --target journal-demo test-journal
+
+COPY container/run-tests.sh /run-tests.sh
+RUN chmod +x /run-tests.sh
+
+ENTRYPOINT ["/run-tests.sh"]
