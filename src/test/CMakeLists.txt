@@ -4,7 +4,11 @@ add_executable(test-journal
     test_journal.c
 )
 
-target_link_libraries(test-journal PRIVATE journal)
+if(BUILD_SHARED_LIBS)
+    target_link_libraries(test-journal PRIVATE journal)
+else()
+    target_link_libraries(test-journal PRIVATE journal_static)
+endif()
 target_compile_definitions(test-journal PRIVATE
     DEMO_BIN="$<TARGET_FILE:journal-demo>"
 )
