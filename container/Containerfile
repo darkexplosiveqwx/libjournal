@@ -1,4 +1,4 @@
-FROM alpine:latest AS build
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS build
 
 ARG buildtype=""
 
@@ -17,11 +17,8 @@ RUN cmake -S . -B build \
     cmake --build build --target journal-demo && \
     cp build/src/demo/journal-demo /journal-demo
 
-FROM scratch
-COPY --from=build /journal-demo /journal-demo
-
 # --- test target: Fedora + systemd for integration tests ---
-FROM fedora:latest AS test
+FROM fedora:44@sha256:1957752d38784e1d6625388a6391ab35ac6434a73c4c2792f662d6c70bf1f549 AS test
 
 RUN dnf install -y \
     gcc \
@@ -40,3 +37,6 @@ COPY container/run-tests.sh /run-tests.sh
 RUN chmod +x /run-tests.sh
 
 ENTRYPOINT ["/run-tests.sh"]
+
+FROM scratch
+COPY --from=build /journal-demo /journal-demo
