@@ -19,12 +19,17 @@ libsystemd dependency -- just the write path.
 ## Building
 
 ```sh
-./build.sh              # default (shared, release)
-./build.sh debug        # debug build
-./build.sh static       # static build with musl-gcc
-./build.sh clean        # remove build artifacts
-./build.sh container    # build via podman/docker (Alpine, fully static)
+./build.sh                    # build library, demo, and tests (release)
+./build.sh build --debug      # debug build
+./build.sh build --static     # static build with musl-gcc
+./build.sh test               # build and run local tests
+./build.sh container          # build via podman/docker (Alpine, fully static)
+./build.sh container test     # run integration tests in Fedora/systemd
+./build.sh clean              # remove build/ and journal-demo
 ```
+
+`build` is the default command, so `./build.sh --debug` is also valid. Use
+`./build.sh --help` for the complete command reference.
 
 CMake options:
 
