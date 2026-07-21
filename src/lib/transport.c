@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "transport.h"
+#define _GNU_SOURCE
 
+#include "transport.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/memfd.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/uio.h>
@@ -17,12 +18,6 @@
 #define JOURNAL_SOCKET_PATH "/run/systemd/journal/socket"
 #define JOURNAL_SNDBUF_SIZE (256U * 1024U)
 #define JOURNAL_MAX_DGRAM (128U * 1024U)
-
-#define JOURNAL_F_ADD_SEALS 1033
-#define JOURNAL_F_SEAL_SEAL   0x0001
-#define JOURNAL_F_SEAL_SHRINK 0x0002
-#define JOURNAL_F_SEAL_GROW   0x0004
-#define JOURNAL_F_SEAL_WRITE  0x0008
 
 static _Atomic int g_fd = -1;
 static pthread_mutex_t g_init_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -58,20 +53,15 @@ static int socket_connect(int fd)
 	return 0;
 }
 
-static int create_memfd(void)
-{
-	return (int)syscall(SYS_memfd_create, "libjournal", MFD_ALLOW_SEALING | MFD_CLOEXEC);
-}
-
 static int seal_memfd(int memfd)
 {
-	int seals = JOURNAL_F_SEAL_SEAL | JOURNAL_F_SEAL_SHRINK | JOURNAL_F_SEAL_GROW | JOURNAL_F_SEAL_WRITE;
-	return fcntl(memfd, JOURNAL_F_ADD_SEALS, seals);
+	int seals = F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE;
+	return fcntl(memfd, F_ADD_SEALS, seals);
 }
 
 static int transport_send_memfd(int fd, const struct iovec *iov, int iov_len, size_t total)
 {
-	int memfd = create_memfd();
+	int memfd = memfd_create("libjournal", MFD_ALLOW_SEALING | MFD_CLOEXEC);
 	if (memfd < 0)
 		return -errno;
 
@@ -95,7 +85,12 @@ static int transport_send_memfd(int fd, const struct iovec *iov, int iov_len, si
 		return -err;
 	}
 
-	seal_memfd(memfd);
+	int seal = seal_memfd(memfd);
+	if (seal < 0)
+	{
+		close(memfd);
+		return -seal;
+	}
 
 	struct msghdr msg;
 	memset(&msg, 0, sizeof(msg));

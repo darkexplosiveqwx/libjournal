@@ -10,7 +10,6 @@ Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz
 BuildRequires:  cmake >= 3.21
 BuildRequires:  gcc
 BuildRequires:  glibc-devel
-BuildRequires:  kernel-headers
 
 %description
 C library for writing to systemd journald without linking against libsystemd.
