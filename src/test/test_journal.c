@@ -224,8 +224,11 @@ static void test_encode_binary(void)
 
 	ASSERT_EQ(iov[1].iov_len, 8);
 	{
-		uint64_t le_val;
-		memcpy(&le_val, iov[1].iov_base, 8);
+		const unsigned char *p = iov[1].iov_base;
+		uint64_t le_val = (uint64_t)p[0] | ((uint64_t)p[1] << 8) | ((uint64_t)p[2] << 16) |
+						  ((uint64_t)p[3] << 24) | ((uint64_t)p[4] << 32) |
+						  ((uint64_t)p[5] << 40) | ((uint64_t)p[6] << 48) |
+						  ((uint64_t)p[7] << 56);
 		ASSERT_EQ(le_val, 5);
 	}
 
