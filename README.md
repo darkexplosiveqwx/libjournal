@@ -1,5 +1,7 @@
 # libjournal
 
+[![Copr build status](https://copr.fedorainfracloud.org/coprs/darkexplosiveqwx/libjournal/package/libjournal/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/darkexplosiveqwx/libjournal/package/libjournal/)
+
 C library for writing to systemd journald without linking against libsystemd.
 
 Implements the native journal protocol over a Unix datagram socket
@@ -53,6 +55,13 @@ To build manually:
 ```sh
 cmake -S . -B build
 cmake --build build
+```
+
+## Installation (Fedora / COPR)
+
+```sh
+sudo dnf copr enable darkexplosiveqwx/libjournal
+sudo dnf install libjournal libjournal-devel
 ```
 
 ## Embedding (in-tree)
