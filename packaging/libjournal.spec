@@ -1,5 +1,5 @@
 Name:           libjournal
-Version:        0.3
+Version:        0.4.1
 Release:        1%{?dist}
 Summary:        C library for writing to systemd journald without libsystemd
 
