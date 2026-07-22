@@ -15,10 +15,17 @@ target_include_directories(journal_obj PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_library(journal SHARED $<TARGET_OBJECTS:journal_obj>)
-add_library(journal_static STATIC $<TARGET_OBJECTS:journal_obj>)
+set(JOURNAL_LIBS "")
+if(BUILD_SHARED_ARTIFACT)
+  add_library(journal SHARED $<TARGET_OBJECTS:journal_obj>)
+  list(APPEND JOURNAL_LIBS journal)
+endif()
+if(BUILD_STATIC_ARTIFACT)
+  add_library(journal_static STATIC $<TARGET_OBJECTS:journal_obj>)
+  list(APPEND JOURNAL_LIBS journal_static)
+endif()
 
-foreach(tgt journal journal_static)
+foreach(tgt ${JOURNAL_LIBS})
     set_target_properties(${tgt} PROPERTIES OUTPUT_NAME journal)
     target_include_directories(${tgt} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -33,7 +40,9 @@ foreach(tgt journal journal_static)
     target_link_libraries(${tgt} PRIVATE Threads::Threads)
 endforeach()
 
-set_target_properties(journal PROPERTIES
-    VERSION   ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
-)
+if(BUILD_SHARED_ARTIFACT)
+  set_target_properties(journal PROPERTIES
+      VERSION   ${PROJECT_VERSION}
+      SOVERSION ${PROJECT_VERSION_MAJOR}
+  )
+endif()

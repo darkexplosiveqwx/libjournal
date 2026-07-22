@@ -14,8 +14,23 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+option(BUILD_SHARED_ARTIFACT "Build shared library artifact" ON)
+option(BUILD_STATIC_ARTIFACT "Build static library artifact" ON)
 option(BUILD_DEMO "Build demo application" ON)
 option(BUILD_TESTS "Build protocol tests" ON)
+
+if(BUILD_DEMO OR BUILD_TESTS)
+  if(BUILD_SHARED_LIBS AND NOT BUILD_SHARED_ARTIFACT)
+    message(FATAL_ERROR "BUILD_SHARED_LIBS is ON but BUILD_SHARED_ARTIFACT is OFF")
+  endif()
+  if(NOT BUILD_SHARED_LIBS AND NOT BUILD_STATIC_ARTIFACT)
+    message(FATAL_ERROR "BUILD_SHARED_LIBS is OFF but BUILD_STATIC_ARTIFACT is OFF")
+  endif()
+else()
+  if(NOT BUILD_SHARED_ARTIFACT AND NOT BUILD_STATIC_ARTIFACT)
+    message(FATAL_ERROR "At least one library artifact must be enabled")
+  endif()
+endif()
 
 if(BUILD_TESTS AND NOT BUILD_DEMO)
   message(FATAL_ERROR "BUILD_TESTS requires BUILD_DEMO to be ON")
@@ -34,13 +49,17 @@ if(BUILD_TESTS)
   add_subdirectory(src/test)
 endif()
 
-install(TARGETS journal
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-install(TARGETS journal_static
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
+if(BUILD_SHARED_ARTIFACT)
+  install(TARGETS journal
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif()
+if(BUILD_STATIC_ARTIFACT)
+  install(TARGETS journal_static
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif()
 
 install(FILES src/lib/journal.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}

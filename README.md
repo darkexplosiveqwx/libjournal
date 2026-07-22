@@ -35,8 +35,18 @@ CMake options:
 
 | Option | Default | Description |
 |---|---|---|
+| `BUILD_SHARED_ARTIFACT` | ON | Build `libjournal.so` |
+| `BUILD_STATIC_ARTIFACT` | ON | Build `libjournal.a` |
+| `BUILD_SHARED_LIBS` | ON | Link `test-journal` and `journal-demo` against the shared library |
 | `BUILD_DEMO` | ON | Build the demo application |
 | `BUILD_TESTS` | ON | Build the protocol tests |
+
+`BUILD_SHARED_ARTIFACT` and `BUILD_STATIC_ARTIFACT` control which library
+artifacts are built; both can be enabled in a single invocation to produce
+`libjournal.so` and `libjournal.a` side by side. When building the demo or
+tests, `BUILD_SHARED_LIBS` selects whether the demo and test executables
+link against the shared or static library, and must match the corresponding
+artifact flag (e.g. setting `BUILD_SHARED_LIBS=OFF` requires `BUILD_STATIC_ARTIFACT=ON`).
 
 To build manually:
 
