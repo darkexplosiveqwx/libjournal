@@ -149,10 +149,7 @@ int transport_init(void)
 		return r;
 	}
 
-	if (r == 0)
-	{
-		atomic_store_explicit(&g_fd, fd, memory_order_release);
-	}
+	atomic_store_explicit(&g_fd, fd, memory_order_release);
 
 	pthread_mutex_unlock(&g_init_mutex);
 	return 0;
