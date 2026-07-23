@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.21)
 set(CMAKE_C_STANDARD 17)
 
-project(libjournal VERSION 0.4.1 LANGUAGES C)
+project(libjournal VERSION 0.5.0 LANGUAGES C)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

@@ -1,4 +1,4 @@
-libjournal (0.4.1-1) unstable; urgency=medium
+libjournal (0.5-1) unstable; urgency=medium
 
   * Initial Debian packaging.
 
