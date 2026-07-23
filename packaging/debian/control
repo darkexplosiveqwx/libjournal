@@ -1,0 +1,50 @@
+Source: libjournal
+Section: libs
+Priority: optional
+Maintainer: darkexplosiveqwx <darkexplosiveqwx@users.noreply.github.com>
+Build-Depends: cmake (>= 3.21),
+               debhelper-compat (= 13),
+               gcc,
+               pkgconf
+Standards-Version: 4.6.2
+Homepage: https://github.com/darkexplosiveqwx/libjournal
+Vcs-Browser: https://github.com/darkexplosiveqwx/libjournal
+Vcs-Git: https://github.com/darkexplosiveqwx/libjournal.git
+Rules-Requires-Root: no
+
+Package: libjournal0
+Architecture: any
+Multi-Arch: same
+Section: libs
+Depends: ${shlibs:Depends},
+         ${misc:Depends}
+Description: C library for writing to systemd journald without libsystemd
+ libjournal implements the native journal protocol over a Unix datagram
+ socket. It provides the write path to journald without linking against
+ libsystemd. Thread-safe with auto-reconnect and large message support
+ via memfd.
+ .
+ This package contains the shared library.
+
+Package: libjournal-dev
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Depends: libjournal0 (= ${binary:Version}),
+         ${misc:Depends}
+Description: Development files for libjournal
+ Header file and pkg-config metadata for developing applications that use
+ libjournal.
+ .
+ This package contains the development headers and pkg-config file.
+
+Package: libjournal-static
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Depends: libjournal-dev (= ${binary:Version}),
+         ${misc:Depends}
+Description: Static library for libjournal
+ Static archive of libjournal for statically linked applications.
+ .
+ This package contains the static library.

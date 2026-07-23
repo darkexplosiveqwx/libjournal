@@ -1,0 +1,9 @@
+*.debhelper.log
+*.substvars
+.debhelper/
+debhelper-build-stamp
+files
+libjournal0/
+libjournal-dev/
+libjournal-static/
+tmp/

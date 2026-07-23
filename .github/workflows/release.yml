@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build-debs:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build .deb packages
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src:Z" \
+            -w /src \
+            ubuntu:22.04 bash -c '
+              apt-get update &&
+              apt-get install -y --no-install-recommends \
+                build-essential cmake gcc pkgconf \
+                debhelper devscripts fakeroot dpkg-dev &&
+              ln -sf packaging/debian debian &&
+              dpkg-buildpackage -us -uc -b
+            '
+
+      - name: Collect artifacts
+        run: mkdir -p dist && mv ../*.deb ../*.ddeb dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: debs-${{ matrix.arch }}
+          path: dist/*.deb
+
+  release:
+    needs: build-debs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          pattern: debs-*
+
+      - name: Create release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          files: dist/**/*.deb

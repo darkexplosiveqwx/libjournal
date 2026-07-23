@@ -1,0 +1,5 @@
+libjournal (0.4.1-1) unstable; urgency=medium
+
+  * Initial Debian packaging.
+
+ -- darkexplosiveqwx <darkexplosiveqwx@users.noreply.github.com>  Wed, 23 Jul 2026 00:00:00 +0000

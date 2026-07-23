@@ -1,0 +1,3 @@
+usr/lib/*/libjournal.so
+usr/include/journal.h
+usr/lib/*/pkgconfig/libjournal.pc
