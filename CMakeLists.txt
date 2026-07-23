@@ -61,7 +61,12 @@ if(BUILD_STATIC_ARTIFACT)
   )
 endif()
 
-install(FILES src/lib/journal.h
+configure_file(${CMAKE_SOURCE_DIR}/src/lib/journal.h.in
+    ${CMAKE_BINARY_DIR}/include/journal.h
+    @ONLY
+)
+
+install(FILES ${CMAKE_BINARY_DIR}/include/journal.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
