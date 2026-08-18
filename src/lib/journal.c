@@ -233,3 +233,74 @@ int journal_sendv(const struct iovec *iov, int n)
 		return 0;
 	return transport_send(iov, n);
 }
+
+int journal_sendve(const struct iovec *iov, int n)
+{
+	if (n < 0)
+		return -EINVAL;
+	if (n == 0)
+		return 0;
+	if (!iov)
+		return -EINVAL;
+
+	static _Thread_local struct iovec out[MAX_IOV * 4];
+	static _Thread_local char key_bufs[MAX_IOV][MAX_KEY + 2];
+	static _Thread_local unsigned char le_bufs[MAX_IOV][8];
+	static const char nl = '\n';
+	int n_out = 0;
+	int n_fields = 0;
+
+	for (int i = 0; i < n && n_fields < MAX_IOV; i++)
+	{
+		const char *base = iov[i].iov_base;
+		size_t len = iov[i].iov_len;
+		if (!base || len == 0)
+			continue;
+
+		const char *eq = memchr(base, '=', len);
+		if (!eq)
+			continue;
+
+		const char *key = base;
+		size_t key_len = (size_t)(eq - base);
+		const char *value = eq + 1;
+		size_t value_len = len - key_len - 1;
+
+		if (encode_validate_key(key, key_len) < 0)
+			continue;
+
+		if (encode_needs_binary(value, value_len))
+		{
+			int idx = n_out;
+			int r = encode_binary(out, MAX_IOV * 4, &idx, key, key_len, value, value_len,
+								  key_bufs[n_fields], le_bufs[n_fields]);
+			if (r < 0)
+				continue;
+			n_out = idx;
+		}
+		else
+		{
+			char *kb = key_bufs[n_fields];
+			memcpy(kb, key, key_len);
+			kb[key_len] = '=';
+			out[n_out].iov_base = kb;
+			out[n_out].iov_len = key_len + 1;
+			n_out++;
+
+			out[n_out].iov_base = (void *)value;
+			out[n_out].iov_len = value_len;
+			n_out++;
+
+			out[n_out].iov_base = (void *)&nl;
+			out[n_out].iov_len = 1;
+			n_out++;
+		}
+
+		n_fields++;
+	}
+
+	if (n_out == 0)
+		return -EINVAL;
+
+	return transport_send(out, n_out);
+}

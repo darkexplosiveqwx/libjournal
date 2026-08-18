@@ -375,6 +375,71 @@ static void test_sendv_large(void)
 	PASS();
 }
 
+/* --- journal_sendve tests --- */
+
+static void test_sendve_basic(void)
+{
+	SKIP_JOURNAL();
+	struct iovec iov[2];
+	const char *f1 = "MESSAGE=hello";
+	const char *f2 = "PRIORITY=6";
+	iov[0].iov_base = (void *)f1;
+	iov[0].iov_len = strlen(f1);
+	iov[1].iov_base = (void *)f2;
+	iov[1].iov_len = strlen(f2);
+	ASSERT_EQ(journal_sendve(iov, 2), 0);
+	ASSERT_EQ(journal_sendve(NULL, 0), 0);
+	ASSERT_EQ(journal_sendve(NULL, -1), -EINVAL);
+	PASS();
+}
+
+static void test_sendve_auto_binary(void)
+{
+	SKIP_JOURNAL();
+	struct iovec iov[1];
+	const char *f = "MESSAGE=hello\nworld";
+	iov[0].iov_base = (void *)f;
+	iov[0].iov_len = strlen(f);
+	ASSERT_EQ(journal_sendve(iov, 1), 0);
+	PASS();
+}
+
+static void test_sendve_equal_in_value(void)
+{
+	SKIP_JOURNAL();
+	struct iovec iov[1];
+	const char *f = "DATA=a=b=c";
+	iov[0].iov_base = (void *)f;
+	iov[0].iov_len = strlen(f);
+	ASSERT_EQ(journal_sendve(iov, 1), 0);
+	PASS();
+}
+
+static void test_sendve_bad_key(void)
+{
+	SKIP_JOURNAL();
+	struct iovec iov[2];
+	const char *f1 = "_PID=123";
+	const char *f2 = "MESSAGE=ok";
+	iov[0].iov_base = (void *)f1;
+	iov[0].iov_len = strlen(f1);
+	iov[1].iov_base = (void *)f2;
+	iov[1].iov_len = strlen(f2);
+	ASSERT_EQ(journal_sendve(iov, 2), 0);
+	PASS();
+}
+
+static void test_sendve_no_eq(void)
+{
+	SKIP_JOURNAL();
+	struct iovec iov[1];
+	const char *f = "NOEQSIGN";
+	iov[0].iov_base = (void *)f;
+	iov[0].iov_len = strlen(f);
+	ASSERT_EQ(journal_sendve(iov, 1), -EINVAL);
+	PASS();
+}
+
 /* --- util_write_le64 --- */
 
 static void test_write_le64(void)
@@ -622,6 +687,18 @@ int main(void)
 	test_sendv_binary();
 	TEST("large message via sendv");
 	test_sendv_large();
+
+	printf("\n=== journal_sendve ===\n");
+	TEST("basic sendve");
+	test_sendve_basic();
+	TEST("auto binary encoding");
+	test_sendve_auto_binary();
+	TEST("equal signs in value");
+	test_sendve_equal_in_value();
+	TEST("bad key skipped");
+	test_sendve_bad_key();
+	TEST("missing equals sign");
+	test_sendve_no_eq();
 
 	printf("\n=== init/close ===\n");
 	TEST("init and close");

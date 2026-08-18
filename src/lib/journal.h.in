@@ -54,4 +54,10 @@ __attribute__((sentinel));
  * sent via memfd automatically. */
 int journal_sendv(const struct iovec *iov, int n);
 
+/* Send journal fields via iovec with automatic encoding. Each iovec entry must
+ * contain a "KEY=value" pair. The key is validated, and values containing NUL
+ * or newline bytes are encoded as binary automatically. Invalid keys are
+ * silently skipped. Large payloads (>128 KB) are sent via memfd automatically. */
+int journal_sendve(const struct iovec *iov, int n);
+
 #endif
