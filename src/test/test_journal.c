@@ -320,34 +320,28 @@ static void test_sendv_basic(void)
 {
 	SKIP_JOURNAL();
 	struct iovec iov[2];
-	char f1[] = "MESSAGE=hello\n";
-	char f2[] = "PRIORITY=6\n";
-	iov[0].iov_base = f1;
-	iov[0].iov_len = sizeof(f1) - 1;
-	iov[1].iov_base = f2;
-	iov[1].iov_len = sizeof(f2) - 1;
+	const char *f1 = "MESSAGE=hello";
+	const char *f2 = "PRIORITY=6";
+	iov[0].iov_base = (void *)f1;
+	iov[0].iov_len = strlen(f1);
+	iov[1].iov_base = (void *)f2;
+	iov[1].iov_len = strlen(f2);
 	ASSERT_EQ(journal_sendv(iov, 2), 0);
 	ASSERT_EQ(journal_sendv(NULL, 0), 0);
 	ASSERT_EQ(journal_sendv(NULL, -1), -EINVAL);
 	PASS();
 }
 
-/* --- binary field via journal_sendv --- */
+/* --- binary field via journal_sendv (auto-detected) --- */
 
-static void test_sendv_binary(void)
+static void test_sendv_auto_binary(void)
 {
 	SKIP_JOURNAL();
-	struct iovec iov[8];
-	unsigned char le_buf[8];
-	char key_buf[16];
-	int idx = 0;
-
-	const char *data = "hello\nworld";
-	int r = encode_binary(iov, 8, &idx, "BINARY", 6, data, 11, key_buf, le_buf);
-	ASSERT_EQ(r, 0);
-	ASSERT_EQ(idx, 4);
-
-	ASSERT_EQ(journal_sendv(iov, idx), 0);
+	struct iovec iov[1];
+	const char *f = "BINARY=hello\nworld";
+	iov[0].iov_base = (void *)f;
+	iov[0].iov_len = strlen(f);
+	ASSERT_EQ(journal_sendv(iov, 1), 0);
 	PASS();
 }
 
@@ -363,80 +357,15 @@ static void test_sendv_large(void)
 	memcpy(buf + 8, "LARGE_MEMFD_PAYLOAD:", 20);
 	for (size_t i = 20; i < sz; i++)
 		buf[8 + i] = 'A';
-	buf[8 + sz] = '\n';
-	const char *prio = "PRIORITY=6\n";
+	buf[8 + sz] = '\0';
+	const char *prio = "PRIORITY=6";
 	struct iovec iov[2];
 	iov[0].iov_base = buf;
-	iov[0].iov_len = 8 + sz + 1;
+	iov[0].iov_len = 8 + sz;
 	iov[1].iov_base = (void *)prio;
 	iov[1].iov_len = strlen(prio);
 	ASSERT_EQ(journal_sendv(iov, 2), 0);
 	free(buf);
-	PASS();
-}
-
-/* --- journal_sendve tests --- */
-
-static void test_sendve_basic(void)
-{
-	SKIP_JOURNAL();
-	struct iovec iov[2];
-	const char *f1 = "MESSAGE=hello";
-	const char *f2 = "PRIORITY=6";
-	iov[0].iov_base = (void *)f1;
-	iov[0].iov_len = strlen(f1);
-	iov[1].iov_base = (void *)f2;
-	iov[1].iov_len = strlen(f2);
-	ASSERT_EQ(journal_sendve(iov, 2), 0);
-	ASSERT_EQ(journal_sendve(NULL, 0), 0);
-	ASSERT_EQ(journal_sendve(NULL, -1), -EINVAL);
-	PASS();
-}
-
-static void test_sendve_auto_binary(void)
-{
-	SKIP_JOURNAL();
-	struct iovec iov[1];
-	const char *f = "MESSAGE=hello\nworld";
-	iov[0].iov_base = (void *)f;
-	iov[0].iov_len = strlen(f);
-	ASSERT_EQ(journal_sendve(iov, 1), 0);
-	PASS();
-}
-
-static void test_sendve_equal_in_value(void)
-{
-	SKIP_JOURNAL();
-	struct iovec iov[1];
-	const char *f = "DATA=a=b=c";
-	iov[0].iov_base = (void *)f;
-	iov[0].iov_len = strlen(f);
-	ASSERT_EQ(journal_sendve(iov, 1), 0);
-	PASS();
-}
-
-static void test_sendve_bad_key(void)
-{
-	SKIP_JOURNAL();
-	struct iovec iov[2];
-	const char *f1 = "_PID=123";
-	const char *f2 = "MESSAGE=ok";
-	iov[0].iov_base = (void *)f1;
-	iov[0].iov_len = strlen(f1);
-	iov[1].iov_base = (void *)f2;
-	iov[1].iov_len = strlen(f2);
-	ASSERT_EQ(journal_sendve(iov, 2), 0);
-	PASS();
-}
-
-static void test_sendve_no_eq(void)
-{
-	SKIP_JOURNAL();
-	struct iovec iov[1];
-	const char *f = "NOEQSIGN";
-	iov[0].iov_base = (void *)f;
-	iov[0].iov_len = strlen(f);
-	ASSERT_EQ(journal_sendve(iov, 1), -EINVAL);
 	PASS();
 }
 
@@ -683,22 +612,10 @@ int main(void)
 	printf("\n=== journal_sendv ===\n");
 	TEST("basic sendv");
 	test_sendv_basic();
-	TEST("binary via sendv");
-	test_sendv_binary();
+	TEST("auto binary encoding");
+	test_sendv_auto_binary();
 	TEST("large message via sendv");
 	test_sendv_large();
-
-	printf("\n=== journal_sendve ===\n");
-	TEST("basic sendve");
-	test_sendve_basic();
-	TEST("auto binary encoding");
-	test_sendve_auto_binary();
-	TEST("equal signs in value");
-	test_sendve_equal_in_value();
-	TEST("bad key skipped");
-	test_sendve_bad_key();
-	TEST("missing equals sign");
-	test_sendve_no_eq();
 
 	printf("\n=== init/close ===\n");
 	TEST("init and close");

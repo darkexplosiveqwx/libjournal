@@ -38,8 +38,8 @@ int main(void)
 		fprintf(stderr, "journal_send() failed: %s\n", strerror(-r));
 
 	{
-		const char *msg = "MESSAGE=Manual iovec field\n";
-		const char *prio = "PRIORITY=7\n";
+		const char *msg = "MESSAGE=Manual iovec field";
+		const char *prio = "PRIORITY=7";
 		struct iovec iov[2];
 		iov[0].iov_base = (void *)msg;
 		iov[0].iov_len = strlen(msg);
@@ -61,12 +61,12 @@ int main(void)
 			memcpy(buf + 8, "LARGE_MEMFD_PAYLOAD:", 20);
 			for (size_t i = 20; i < sz; i++)
 				buf[8 + i] = 'A';
-			buf[8 + sz] = '\n';
+			buf[8 + sz] = '\0';
 
-			const char *prio = "PRIORITY=6\n";
+			const char *prio = "PRIORITY=6";
 			struct iovec iov[2];
 			iov[0].iov_base = buf;
-			iov[0].iov_len = 8 + sz + 1;
+			iov[0].iov_len = 8 + sz;
 			iov[1].iov_base = (void *)prio;
 			iov[1].iov_len = strlen(prio);
 

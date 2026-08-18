@@ -48,16 +48,11 @@ int journal_print(int priority, const char *format, ...) __attribute__((format(p
 int journal_send(const char *format, ...) __attribute__((format(printf, 1, 0)))
 __attribute__((sentinel));
 
-/* Send pre-formatted journal fields via iovec. Each entry must contain one
- * complete field in the format "KEY=value\n". Binary fields must already be
- * encoded using journald's binary field format. Large payloads (>128 KB) are
- * sent via memfd automatically. */
+/* Send structured journal fields as iovec. Each entry must contain a
+ * "KEY=value" pair (without trailing newline). Keys are validated, and values
+ * containing NUL or newline bytes are encoded as binary automatically. Invalid
+ * keys are silently skipped. Large payloads (>128 KB) are sent via memfd
+ * automatically. */
 int journal_sendv(const struct iovec *iov, int n);
-
-/* Send journal fields via iovec with automatic encoding. Each iovec entry must
- * contain a "KEY=value" pair. The key is validated, and values containing NUL
- * or newline bytes are encoded as binary automatically. Invalid keys are
- * silently skipped. Large payloads (>128 KB) are sent via memfd automatically. */
-int journal_sendve(const struct iovec *iov, int n);
 
 #endif

@@ -2,7 +2,6 @@
 
 #include "journal.h"
 
-#include "encode.h"
 #include "transport.h"
 #include "util.h"
 
@@ -14,22 +13,20 @@
 #define MAX_IOV 64
 #define FIELD_BUF 4096
 #define MAX_KEY 256
+#define VALUE_BUF (MAX_IOV * (MAX_KEY + 1 + FIELD_BUF))
 
 static int send_impl(const char *format, va_list ap)
 {
 	if (!format)
 		return -EINVAL;
 
-	static _Thread_local struct iovec iov[MAX_IOV * 4];
-	static _Thread_local char values[MAX_IOV][FIELD_BUF];
-	static _Thread_local char text_fields[MAX_IOV][FIELD_BUF + MAX_KEY + 2];
-	static _Thread_local char key_bufs[MAX_IOV][MAX_KEY + 1];
-	static _Thread_local unsigned char le_bufs[MAX_IOV][8];
+	static _Thread_local struct iovec iov[MAX_IOV];
+	static _Thread_local char field_buf[VALUE_BUF];
 	int n_iov = 0;
-	int n_fields = 0;
+	int off = 0;
 
 	const char *f = format;
-	while (f && n_fields < MAX_IOV)
+	while (f && n_iov < MAX_IOV)
 	{
 		const char *eq = strchr(f, '=');
 		if (!eq)
@@ -39,25 +36,7 @@ static int send_impl(const char *format, va_list ap)
 		int n_args = util_count_printf_conversions(value_fmt);
 
 		size_t key_len = (size_t)(eq - f);
-		if (key_len == 0 || key_len > MAX_KEY)
-		{
-			/*
-			 * Consume variadic arguments as void* to skip past them. This works
-			 * because all GP register slots are pointer-sized on supported ABIs.
-			 *
-			 * On AARCH64, floating-point values are passed in separate FP
-			 * registers (v0-v7) tracked by va_list.__vr_offs. va_arg(ap, void*)
-			 * only advances the GP register offset (__gr_offs), so FP format
-			 * specifiers (%f, %e, %g, %a, %Lf) in field values are not consumed
-			 * and will cause subsequent arguments to be misread.
-			 */
-			for (int i = 0; i < n_args; i++)
-				(void)va_arg(ap, void *);
-			f = va_arg(ap, const char *);
-			continue;
-		}
-
-		if (encode_validate_key(f, key_len) < 0)
+		if (key_len == 0)
 		{
 			for (int i = 0; i < n_args; i++)
 				(void)va_arg(ap, void *);
@@ -65,14 +44,20 @@ static int send_impl(const char *format, va_list ap)
 			continue;
 		}
 
-		char *value_buf = values[n_fields];
+		size_t need = key_len + 1 + FIELD_BUF;
+		if (off + (int)need > (int)sizeof(field_buf))
+			break;
+
+		char *buf = field_buf + off;
+		memcpy(buf, f, key_len);
+		buf[key_len] = '=';
+
 		int value_len;
-
 		if (n_args > 0)
 		{
 			va_list copy;
 			va_copy(copy, ap);
-			value_len = vsnprintf(value_buf, FIELD_BUF, value_fmt, copy);
+			value_len = vsnprintf(buf + key_len + 1, FIELD_BUF, value_fmt, copy);
 			va_end(copy);
 
 			if (value_len < 0)
@@ -84,52 +69,21 @@ static int send_impl(const char *format, va_list ap)
 			}
 			if ((size_t)value_len >= FIELD_BUF)
 				value_len = FIELD_BUF - 1;
-			value_buf[value_len] = '\0';
 		}
 		else
 		{
 			size_t vlen = strlen(value_fmt);
 			if (vlen >= FIELD_BUF)
 				vlen = FIELD_BUF - 1;
-			memcpy(value_buf, value_fmt, vlen);
-			value_buf[vlen] = '\0';
+			memcpy(buf + key_len + 1, value_fmt, vlen);
+			buf[key_len + 1 + vlen] = '\0';
 			value_len = (int)vlen;
 		}
 
-		value_len = (int)encode_trim_trailing_whitespace(value_buf, (size_t)value_len);
-
-		if (encode_needs_binary(value_buf, (size_t)value_len))
-		{
-			int idx = n_iov;
-			int r = encode_binary(iov, MAX_IOV * 4, &idx, f, key_len, value_buf, (size_t)value_len,
-								  key_bufs[n_fields], le_bufs[n_fields]);
-			if (r < 0)
-			{
-				for (int i = 0; i < n_args; i++)
-					(void)va_arg(ap, void *);
-				f = va_arg(ap, const char *);
-				continue;
-			}
-			n_iov = idx;
-		}
-		else
-		{
-			char *field_buf = text_fields[n_fields];
-			int len = encode_text(field_buf, sizeof(text_fields[n_fields]), f, key_len, value_buf,
-								  (size_t)value_len);
-			if (len < 0)
-			{
-				for (int i = 0; i < n_args; i++)
-					(void)va_arg(ap, void *);
-				f = va_arg(ap, const char *);
-				continue;
-			}
-			iov[n_iov].iov_base = field_buf;
-			iov[n_iov].iov_len = (size_t)len;
-			n_iov++;
-		}
-
-		n_fields++;
+		iov[n_iov].iov_base = buf;
+		iov[n_iov].iov_len = key_len + 1 + (size_t)value_len;
+		n_iov++;
+		off += (int)(key_len + 1 + (size_t)value_len);
 
 		for (int i = 0; i < n_args; i++)
 			(void)va_arg(ap, void *);
@@ -163,12 +117,10 @@ int journal_print(int priority, const char *format, ...)
 		return -EINVAL;
 
 	char msg[FIELD_BUF];
-	char msg_field[64 + FIELD_BUF];
+	char msg_buf[64 + FIELD_BUF];
 	char prio_val[16];
-	char prio_field[32];
-	unsigned char le_buf[8];
-	char key_buf[8];
-	struct iovec iov[8];
+	char prio_buf[32];
+	struct iovec iov[2];
 	int n_iov = 0;
 
 	va_list ap;
@@ -181,36 +133,20 @@ int journal_print(int priority, const char *format, ...)
 	if ((size_t)msg_len >= sizeof(msg))
 		msg_len = (int)sizeof(msg) - 1;
 
-	msg_len = (int)encode_trim_trailing_whitespace(msg, (size_t)msg_len);
-
-	if (encode_needs_binary(msg, (size_t)msg_len))
-	{
-		int idx = n_iov;
-		int r = encode_binary(iov, 8, &idx, "MESSAGE", 7, msg, (size_t)msg_len, key_buf, le_buf);
-		if (r < 0)
-			return r;
-		n_iov = idx;
-	}
-	else
-	{
-		int len = encode_text(msg_field, sizeof(msg_field), "MESSAGE", 7, msg, (size_t)msg_len);
-		if (len < 0)
-			return -EINVAL;
-		iov[n_iov].iov_base = msg_field;
-		iov[n_iov].iov_len = (size_t)len;
-		n_iov++;
-	}
+	memcpy(msg_buf, "MESSAGE=", 8);
+	memcpy(msg_buf + 8, msg, (size_t)msg_len);
+	iov[n_iov].iov_base = msg_buf;
+	iov[n_iov].iov_len = 8 + (size_t)msg_len;
+	n_iov++;
 
 	int prio_len = snprintf(prio_val, sizeof(prio_val), "%d", priority);
 	if (prio_len < 0)
 		return -EINVAL;
 
-	int pfl =
-		encode_text(prio_field, sizeof(prio_field), "PRIORITY", 8, prio_val, (size_t)prio_len);
-	if (pfl < 0)
-		return -EINVAL;
-	iov[n_iov].iov_base = prio_field;
-	iov[n_iov].iov_len = (size_t)pfl;
+	memcpy(prio_buf, "PRIORITY=", 9);
+	memcpy(prio_buf + 9, prio_val, (size_t)prio_len);
+	iov[n_iov].iov_base = prio_buf;
+	iov[n_iov].iov_len = 9 + (size_t)prio_len;
 	n_iov++;
 
 	return transport_send(iov, n_iov);
@@ -227,80 +163,5 @@ int journal_send(const char *format, ...)
 
 int journal_sendv(const struct iovec *iov, int n)
 {
-	if (n < 0)
-		return -EINVAL;
-	if (n == 0)
-		return 0;
 	return transport_send(iov, n);
-}
-
-int journal_sendve(const struct iovec *iov, int n)
-{
-	if (n < 0)
-		return -EINVAL;
-	if (n == 0)
-		return 0;
-	if (!iov)
-		return -EINVAL;
-
-	static _Thread_local struct iovec out[MAX_IOV * 4];
-	static _Thread_local char key_bufs[MAX_IOV][MAX_KEY + 2];
-	static _Thread_local unsigned char le_bufs[MAX_IOV][8];
-	static const char nl = '\n';
-	int n_out = 0;
-	int n_fields = 0;
-
-	for (int i = 0; i < n && n_fields < MAX_IOV; i++)
-	{
-		const char *base = iov[i].iov_base;
-		size_t len = iov[i].iov_len;
-		if (!base || len == 0)
-			continue;
-
-		const char *eq = memchr(base, '=', len);
-		if (!eq)
-			continue;
-
-		const char *key = base;
-		size_t key_len = (size_t)(eq - base);
-		const char *value = eq + 1;
-		size_t value_len = len - key_len - 1;
-
-		if (encode_validate_key(key, key_len) < 0)
-			continue;
-
-		if (encode_needs_binary(value, value_len))
-		{
-			int idx = n_out;
-			int r = encode_binary(out, MAX_IOV * 4, &idx, key, key_len, value, value_len,
-								  key_bufs[n_fields], le_bufs[n_fields]);
-			if (r < 0)
-				continue;
-			n_out = idx;
-		}
-		else
-		{
-			char *kb = key_bufs[n_fields];
-			memcpy(kb, key, key_len);
-			kb[key_len] = '=';
-			out[n_out].iov_base = kb;
-			out[n_out].iov_len = key_len + 1;
-			n_out++;
-
-			out[n_out].iov_base = (void *)value;
-			out[n_out].iov_len = value_len;
-			n_out++;
-
-			out[n_out].iov_base = (void *)&nl;
-			out[n_out].iov_len = 1;
-			n_out++;
-		}
-
-		n_fields++;
-	}
-
-	if (n_out == 0)
-		return -EINVAL;
-
-	return transport_send(out, n_out);
 }
