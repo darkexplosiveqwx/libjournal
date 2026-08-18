@@ -90,6 +90,9 @@ static void test_validate_key_accept(void)
 	ASSERT_EQ(encode_validate_key("MESSAGE", 7), 0);
 	ASSERT_EQ(encode_validate_key("SYSLOG_IDENTIFIER", 17), 0);
 	ASSERT_EQ(encode_validate_key("FOO_123", 7), 0);
+	ASSERT_EQ(encode_validate_key("bad", 3), 0); /* lowercase is valid */
+	ASSERT_EQ(encode_validate_key("BAD KEY", 7), 0); /* space is printable */
+	ASSERT_EQ(encode_validate_key("code.file", 9), 0); /* punctuation is valid */
 	PASS();
 }
 
@@ -98,8 +101,10 @@ static void test_validate_key_reject(void)
 	ASSERT_EQ(encode_validate_key("_", 1), -EINVAL);
 	ASSERT_EQ(encode_validate_key("BAD=KEY", 7), -EINVAL);
 	ASSERT_EQ(encode_validate_key("BAD\nKEY", 7), -EINVAL);
-	ASSERT_EQ(encode_validate_key("BAD KEY", 7), -EINVAL);
-	ASSERT_EQ(encode_validate_key("bad", 3), -EINVAL);
+	ASSERT_EQ(encode_validate_key("A\x01B", 3), -EINVAL); /* control char */
+	ASSERT_EQ(encode_validate_key("A" "\x7f" "B", 3), -EINVAL); /* DEL */
+	ASSERT_EQ(encode_validate_key("B\xc3\xb6M", 4), -EINVAL); /* non-ASCII */
+	ASSERT_EQ(encode_validate_key("A" "\x80" "B", 3), -EINVAL); /* high byte */
 	ASSERT_EQ(encode_validate_key("123", 3), 0); /* digits are valid */
 	ASSERT_EQ(encode_validate_key("", 0), -EINVAL);
 	ASSERT_EQ(encode_validate_key(NULL, 5), -EINVAL);
@@ -270,16 +275,13 @@ static void test_encode_binary_too_small(void)
 
 static void test_send_bad_key(void)
 {
-	int r = journal_send("BAD KEY=value", NULL);
-	ASSERT_EQ(r, -EINVAL);
-
-	r = journal_send("bad=value", NULL);
-	ASSERT_EQ(r, -EINVAL);
-
-	r = journal_send("_PID=123", NULL);
+	int r = journal_send("_PID=123", NULL);
 	ASSERT_EQ(r, -EINVAL);
 
 	r = journal_send("=value", NULL);
+	ASSERT_EQ(r, -EINVAL);
+
+	r = journal_send("BAD\x01KEY=value", NULL);
 	ASSERT_EQ(r, -EINVAL);
 	PASS();
 }
