@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdatomic.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
@@ -19,7 +20,6 @@
 #include <unistd.h>
 
 #define MAX_IOV 64
-#define MAX_KEY 256
 
 #define JOURNAL_SOCKET_PATH "/run/systemd/journal/socket"
 #define JOURNAL_SNDBUF_SIZE (256U * 1024U)
@@ -183,9 +183,11 @@ int transport_send(const struct iovec *iov, int iov_len)
 		return -EINVAL;
 
 	static _Thread_local struct iovec out[MAX_IOV * 4];
-	static _Thread_local char key_bufs[MAX_IOV][MAX_KEY + 2];
 	static _Thread_local unsigned char le_bufs[MAX_IOV][8];
+	static _Thread_local char *key_bufs[MAX_IOV];
+	static _Thread_local size_t key_buf_caps[MAX_IOV];
 	static const char nl = '\n';
+	static const char eq_char = '=';
 	int n_out = 0;
 	int n_fields = 0;
 
@@ -210,6 +212,16 @@ int transport_send(const struct iovec *iov, int iov_len)
 
 		if (encode_needs_binary(value, value_len))
 		{
+			size_t kb_need = key_len + 1;
+			if (kb_need > key_buf_caps[n_fields])
+			{
+				char *tmp = realloc(key_bufs[n_fields], kb_need);
+				if (!tmp)
+					continue;
+				key_bufs[n_fields] = tmp;
+				key_buf_caps[n_fields] = kb_need;
+			}
+
 			int idx = n_out;
 			int r = encode_binary(out, MAX_IOV * 4, &idx, key, key_len, value, value_len,
 								  key_bufs[n_fields], le_bufs[n_fields]);
@@ -219,11 +231,12 @@ int transport_send(const struct iovec *iov, int iov_len)
 		}
 		else
 		{
-			char *kb = key_bufs[n_fields];
-			memcpy(kb, key, key_len);
-			kb[key_len] = '=';
-			out[n_out].iov_base = kb;
-			out[n_out].iov_len = key_len + 1;
+			out[n_out].iov_base = (void *)key;
+			out[n_out].iov_len = key_len;
+			n_out++;
+
+			out[n_out].iov_base = (void *)&eq_char;
+			out[n_out].iov_len = 1;
 			n_out++;
 
 			out[n_out].iov_base = (void *)value;
