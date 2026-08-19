@@ -2,6 +2,7 @@
 
 #include "journal.h"
 
+#include "encode.h"
 #include "transport.h"
 #include "util.h"
 
@@ -36,7 +37,15 @@ static int send_impl(const char *format, va_list ap)
 		int n_args = util_count_printf_conversions(value_fmt);
 
 		size_t key_len = (size_t)(eq - f);
-		if (key_len == 0)
+		if (key_len == 0 || key_len > MAX_KEY)
+		{
+			for (int i = 0; i < n_args; i++)
+				(void)va_arg(ap, void *);
+			f = va_arg(ap, const char *);
+			continue;
+		}
+
+		if (encode_validate_key(f, key_len) < 0)
 		{
 			for (int i = 0; i < n_args; i++)
 				(void)va_arg(ap, void *);
@@ -80,6 +89,8 @@ static int send_impl(const char *format, va_list ap)
 			value_len = (int)vlen;
 		}
 
+		value_len = (int)encode_trim_trailing_whitespace(buf + key_len + 1, (size_t)value_len);
+
 		iov[n_iov].iov_base = buf;
 		iov[n_iov].iov_len = key_len + 1 + (size_t)value_len;
 		n_iov++;
@@ -116,6 +127,9 @@ int journal_print(int priority, const char *format, ...)
 	if (!format)
 		return -EINVAL;
 
+	if (priority < 0 || priority > 7)
+		return -EINVAL;
+
 	char msg[FIELD_BUF];
 	char msg_buf[64 + FIELD_BUF];
 	char prio_val[16];
@@ -132,6 +146,8 @@ int journal_print(int priority, const char *format, ...)
 		return -EINVAL;
 	if ((size_t)msg_len >= sizeof(msg))
 		msg_len = (int)sizeof(msg) - 1;
+
+	msg_len = (int)encode_trim_trailing_whitespace(msg, (size_t)msg_len);
 
 	memcpy(msg_buf, "MESSAGE=", 8);
 	memcpy(msg_buf + 8, msg, (size_t)msg_len);
