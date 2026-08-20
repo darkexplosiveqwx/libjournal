@@ -190,6 +190,7 @@ int transport_send(const struct iovec *iov, int iov_len)
 	static const char eq_char = '=';
 	int n_out = 0;
 	int n_fields = 0;
+	int ret = -EINVAL;
 
 	for (int i = 0; i < iov_len && n_fields < MAX_IOV; i++)
 	{
@@ -255,7 +256,7 @@ int transport_send(const struct iovec *iov, int iov_len)
 	}
 
 	if (n_out == 0)
-		return -EINVAL;
+		goto out;
 
 	size_t total = 0;
 	for (int i = 0; i < n_out; i++)
@@ -263,10 +264,16 @@ int transport_send(const struct iovec *iov, int iov_len)
 
 	int fd = atomic_load_explicit(&g_fd, memory_order_acquire);
 	if (fd < 0)
-		return -ENOTCONN;
+	{
+		ret = -ENOTCONN;
+		goto out;
+	}
 
 	if (total > JOURNAL_MAX_DGRAM)
-		return transport_send_memfd(fd, out, n_out, total);
+	{
+		ret = transport_send_memfd(fd, out, n_out, total);
+		goto out;
+	}
 
 	struct msghdr msg;
 	memset(&msg, 0, sizeof(msg));
@@ -280,12 +287,18 @@ int transport_send(const struct iovec *iov, int iov_len)
 	} while (r < 0 && errno == EINTR);
 
 	if (r >= 0)
-		return 0;
+	{
+		ret = 0;
+		goto out;
+	}
 
 	int err = errno;
 
 	if (err == EMSGSIZE)
-		return transport_send_memfd(fd, out, n_out, total);
+	{
+		ret = transport_send_memfd(fd, out, n_out, total);
+		goto out;
+	}
 
 	if (err == ECONNREFUSED || err == ENOTCONN || err == EPIPE)
 	{
@@ -327,10 +340,16 @@ int transport_send(const struct iovec *iov, int iov_len)
 		pthread_mutex_unlock(&g_init_mutex);
 
 		if (err)
-			return -err;
+		{
+			ret = -err;
+			goto out;
+		}
 
 		if (total > JOURNAL_MAX_DGRAM)
-			return transport_send_memfd(fd, out, n_out, total);
+		{
+			ret = transport_send_memfd(fd, out, n_out, total);
+			goto out;
+		}
 
 		msg.msg_iov = out;
 		msg.msg_iovlen = n_out;
@@ -341,14 +360,30 @@ int transport_send(const struct iovec *iov, int iov_len)
 		} while (r < 0 && errno == EINTR);
 
 		if (r >= 0)
-			return 0;
+		{
+			ret = 0;
+			goto out;
+		}
 
 		err = errno;
 		if (err == EMSGSIZE)
-			return transport_send_memfd(fd, out, n_out, total);
+		{
+			ret = transport_send_memfd(fd, out, n_out, total);
+			goto out;
+		}
 
-		return -err;
+		ret = -err;
+		goto out;
 	}
 
-	return -err;
+	ret = -err;
+
+out:
+	for (int i = 0; i < MAX_IOV; i++)
+	{
+		free(key_bufs[i]);
+		key_bufs[i] = NULL;
+		key_buf_caps[i] = 0;
+	}
+	return ret;
 }
