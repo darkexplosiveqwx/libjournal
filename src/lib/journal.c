@@ -53,7 +53,19 @@ static int send_impl(const char *format, va_list ap)
 			continue;
 		}
 
-		size_t need = key_len + 1 + FIELD_BUF;
+		size_t value_max;
+		if (n_args > 0)
+		{
+			value_max = FIELD_BUF;
+		}
+		else
+		{
+			value_max = strlen(value_fmt);
+			if (value_max >= FIELD_BUF)
+				value_max = FIELD_BUF - 1;
+		}
+
+		size_t need = key_len + 1 + value_max;
 		if (off + (int)need > (int)sizeof(field_buf))
 			break;
 
@@ -81,12 +93,9 @@ static int send_impl(const char *format, va_list ap)
 		}
 		else
 		{
-			size_t vlen = strlen(value_fmt);
-			if (vlen >= FIELD_BUF)
-				vlen = FIELD_BUF - 1;
-			memcpy(buf + key_len + 1, value_fmt, vlen);
-			buf[key_len + 1 + vlen] = '\0';
-			value_len = (int)vlen;
+			memcpy(buf + key_len + 1, value_fmt, value_max);
+			buf[key_len + 1 + value_max] = '\0';
+			value_len = (int)value_max;
 		}
 
 		value_len = (int)encode_trim_trailing_whitespace(buf + key_len + 1, (size_t)value_len);
