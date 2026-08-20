@@ -231,6 +231,9 @@ int transport_send(const struct iovec *iov, int iov_len)
 		}
 		else
 		{
+			if (n_out + 4 > MAX_IOV * 4)
+				break;
+
 			out[n_out].iov_base = (void *)key;
 			out[n_out].iov_len = key_len;
 			n_out++;
