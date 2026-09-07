@@ -7,8 +7,10 @@
 #include "util.h"
 
 #include <errno.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define MAX_IOV 64
@@ -16,13 +18,39 @@
 #define MAX_KEY 256
 #define VALUE_BUF (MAX_IOV * (MAX_KEY + 1 + FIELD_BUF))
 
+static pthread_key_t field_buf_key;
+static pthread_once_t field_buf_once = PTHREAD_ONCE_INIT;
+
+static void field_buf_destructor(void *p)
+{
+	free(p);
+}
+
+static int field_buf_key_ready;
+
+static void field_buf_key_init(void)
+{
+	if (pthread_key_create(&field_buf_key, field_buf_destructor) == 0)
+		field_buf_key_ready = 1;
+}
+
 static int send_impl(const char *format, va_list ap)
 {
 	if (!format)
 		return -EINVAL;
 
 	static _Thread_local struct iovec iov[MAX_IOV];
-	static _Thread_local char field_buf[VALUE_BUF];
+	static _Thread_local char *field_buf;
+	if (!field_buf)
+	{
+		field_buf = malloc(VALUE_BUF);
+		if (!field_buf)
+			return -ENOMEM;
+		pthread_once(&field_buf_once, field_buf_key_init);
+		if (field_buf_key_ready)
+			pthread_setspecific(field_buf_key, field_buf);
+	}
+
 	int n_iov = 0;
 	int off = 0;
 
@@ -66,7 +94,7 @@ static int send_impl(const char *format, va_list ap)
 		}
 
 		size_t need = key_len + 1 + value_max;
-		if (off + (int)need > (int)sizeof(field_buf))
+		if (off + (int)need > VALUE_BUF)
 			break;
 
 		char *buf = field_buf + off;
